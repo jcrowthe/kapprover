@@ -16,6 +16,7 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 
 	_ "github.com/coreos/kapprover/pkg/approvers/always"
+	_ "github.com/coreos/kapprover/pkg/approvers/service"
 )
 
 var (
