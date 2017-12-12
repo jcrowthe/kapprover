@@ -5,8 +5,9 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/coreos/kapprover/pkg/approvers"
-	"k8s.io/client-go/kubernetes/typed/certificates/v1alpha1"
-	certificates "k8s.io/client-go/pkg/apis/certificates/v1alpha1"
+	meta "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes/typed/certificates/v1beta1"
+	certificates "k8s.io/client-go/pkg/apis/certificates/v1beta1"
 )
 
 const (
@@ -25,7 +26,7 @@ func init() {
 type Always struct{}
 
 // Approve approves CSRs in a loop.
-func (*Always) Approve(client v1alpha1.CertificateSigningRequestInterface, request *certificates.CertificateSigningRequest) error {
+func (*Always) Approve(client v1beta1.CertificateSigningRequestInterface, request *certificates.CertificateSigningRequest) error {
 	condition := certificates.CertificateSigningRequestCondition{
 		Type:    certificates.CertificateApproved,
 		Reason:  "AutoApproved",
@@ -40,12 +41,14 @@ func (*Always) Approve(client v1alpha1.CertificateSigningRequestInterface, reque
 		// it means that the request has already been approved or denied, and that
 		// we should ignore the request.
 		if len(request.Status.Conditions) > 0 {
+			log.Infof("Ignoring already approved/denied CSR")
 			return nil
 		}
 
 		// Ensure the CSR has been submitted by a kubelet performing its TLS
 		// bootstrapping by checking the username and the group.
 		if request.Spec.Username != kubeletBootstrapUsername {
+			log.Infof("Denying CSR due to username not matching bootstrap: %s != %s", request.Spec.Username, kubeletBootstrapUsername)
 			return nil
 		}
 
@@ -57,18 +60,22 @@ func (*Always) Approve(client v1alpha1.CertificateSigningRequestInterface, reque
 			}
 		}
 		if !isKubeletBootstrapGroup {
+			log.WithFields(log.Fields{
+				"groups": request.Spec.Groups,
+			}).Infof("Denying CSR due to not in bootstrap group: %s", kubeletBootstrapGroup)
 			return nil
 		}
 
 		// Approve the CSR.
 		request.Status.Conditions = append(request.Status.Conditions, condition)
+		log.Info("Approving CSR!")
 
 		// Submit the updated CSR.
 		if _, err := client.UpdateApproval(request); err != nil {
 			if strings.Contains(err.Error(), "the object has been modified") {
 				// The CSR might have been updated by a third-party, retry until we
 				// succeed.
-				request, err = client.Get(request.ObjectMeta.Name)
+				request, err = client.Get(request.ObjectMeta.Name, meta.GetOptions{})
 				if err != nil {
 					return err
 				}
