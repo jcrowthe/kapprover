@@ -11,7 +11,7 @@ import (
 )
 
 const (
-	kubeletBootstrapUsername = "kubelet-bootstrap"
+	kubeletBootstrapUsername = "system:node:"
 	kubeletBootstrapGroup    = "system:kubelet-bootstrap"
 )
 
@@ -47,7 +47,7 @@ func (*Always) Approve(client v1beta1.CertificateSigningRequestInterface, reques
 
 		// Ensure the CSR has been submitted by a kubelet performing its TLS
 		// bootstrapping by checking the username and the group.
-		if request.Spec.Username != kubeletBootstrapUsername {
+		if !strings.HasPrefix(request.Spec.Username, kubeletBootstrapUsername) {
 			log.Infof("Denying CSR due to username not matching bootstrap: %s != %s", request.Spec.Username, kubeletBootstrapUsername)
 			return nil
 		}
