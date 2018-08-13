@@ -41,7 +41,6 @@ func (*Always) Approve(client v1beta1.CertificateSigningRequestInterface, reques
 		// it means that the request has already been approved or denied, and that
 		// we should ignore the request.
 		if len(request.Status.Conditions) > 0 {
-			log.Infof("Ignoring already approved/denied CSR")
 			return nil
 		}
 
