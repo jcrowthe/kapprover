@@ -12,7 +12,7 @@ import (
 
 const (
 	kubeletBootstrapUsername = "system:node:"
-	kubeletBootstrapGroup    = "system:kubelet-bootstrap"
+	kubeletBootstrapGroup    = "system:authenticated"
 )
 
 func init() {
